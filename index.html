@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultimate Tic-Tac-Toe</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Use Inter Font -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            transition: background-color 0.5s ease;
+        }
+        /* Custom CSS for the Board Grid */
+        .game-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 0.5rem;
+            width: 100%;
+            max-width: 400px; /* Max size for the board */
+            aspect-ratio: 1 / 1; /* Keep it square */
+            margin: 0 auto;
+        }
+        .cell {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 3rem; /* Large touch target */
+            font-weight: 700;
+            cursor: pointer;
+            border-radius: 0.75rem;
+            transition: background-color 0.2s, transform 0.1s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .cell:hover:not(.filled) {
+            transform: translateY(-2px);
+        }
+        .settings-panel {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .winner-message {
+            animation: pulse-glow 1.5s infinite alternate;
+        }
+        @keyframes pulse-glow {
+            from { text-shadow: 0 0 5px rgba(255, 255, 255, 0.5); }
+            to { text-shadow: 0 0 10px rgba(255, 255, 255, 1), 0 0 15px #FFD700; }
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 flex flex-col items-center justify-center bg-gray-100" id="body-container">
+
+    <div class="w-full max-w-lg p-6 bg-white rounded-xl shadow-2xl space-y-6">
+        <h1 class="text-4xl font-bold text-center text-gray-800">Tic-Tac-Toe Master</h1>
+
+        <!-- Game Status & Message Area -->
+        <div id="status" class="text-2xl text-center font-semibold p-4 rounded-lg text-white transition-all duration-300">
+            Click a cell to start!
+        </div>
+
+        <!-- Tic-Tac-Toe Board -->
+        <div id="game-board" class="game-grid">
+            <!-- Cells will be dynamically generated here -->
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex justify-center space-x-4">
+            <button id="reset-button" class="px-6 py-3 bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-full shadow-lg transition duration-200">
+                New Game
+            </button>
+            <button id="settings-toggle" class="px-6 py-3 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold rounded-full shadow-lg transition duration-200">
+                <span id="settings-toggle-text">Show Settings</span>
+            </button>
+        </div>
+
+        <!-- Customization Panel -->
+        <div id="settings-panel" class="settings-panel p-5 bg-gray-50 rounded-lg space-y-4 hidden border border-gray-200 mt-6">
+            <h2 class="text-xl font-bold text-gray-700 border-b pb-2">Customization</h2>
+
+            <!-- 1. Theme Selection -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Select Theme</label>
+                <div class="flex flex-wrap gap-3">
+                    <button onclick="applyTheme('NeonBlue')" class="px-4 py-2 text-sm rounded-full shadow-md transition duration-150 bg-blue-600 text-white hover:ring-2 ring-blue-500">Neon Blue</button>
+                    <button onclick="applyTheme('Sunset')" class="px-4 py-2 text-sm rounded-full shadow-md transition duration-150 bg-red-500 text-white hover:ring-2 ring-red-400">Sunset</button>
+                    <button onclick="applyTheme('DarkForest')" class="px-4 py-2 text-sm rounded-full shadow-md transition duration-150 bg-gray-700 text-white hover:ring-2 ring-gray-600">Dark Forest</button>
+                </div>
+            </div>
+
+            <!-- 2. Icon Selection -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Select Player Icons</label>
+                <div class="flex flex-wrap gap-3">
+                    <button onclick="setMarkerSet('Standard')" class="px-4 py-2 text-sm rounded-full shadow-md transition duration-150 bg-green-500 text-white hover:ring-2 ring-green-400">X / O</button>
+                    <button onclick="setMarkerSet('Emojis')" class="px-4 py-2 text-sm rounded-full shadow-md transition duration-150 bg-yellow-500 text-white hover:ring-2 ring-yellow-400">⭐ / ❌</button>
+                    <button onclick="setMarkerSet('TickCircle')" class="px-4 py-2 text-sm rounded-full shadow-md transition duration-150 bg-pink-500 text-white hover:ring-2 ring-pink-400">✓ / O</button>
+                </div>
+            </div>
+
+            <!-- 3. Custom Separator Input -->
+            <div>
+                <label for="separator-input" class="block text-sm font-medium text-gray-700 mb-2">Status Separator Character</label>
+                <input type="text" id="separator-input" value="|" maxlength="1" oninput="updateSeparator()"
+                    class="w-full p-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 text-center text-lg font-mono">
+                <p class="text-xs text-gray-500 mt-1">This character is used in the game status message (e.g., "Player X | O's Turn").</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Message Modal (Replaces alert()) -->
+    <div id="message-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full text-center">
+            <h3 id="modal-header" class="text-2xl font-bold mb-4"></h3>
+            <p id="modal-text" class="mb-6"></p>
+            <button onclick="closeModal()" class="px-6 py-2 bg-indigo-500 text-white rounded-full font-semibold hover:bg-indigo-600 transition duration-150">Got It</button>
+        </div>
+    </div>
+
+    <script>
+        // --- GAME STATE ---
+        let board = Array(9).fill(null);
+        let playerMarkers = { X: 'X', O: 'O' }; // Default Markers
+        let currentPlayer = 'X';
+        let isGameActive = true;
+        let separatorChar = '|';
+
+        // Winning combinations (indices of the board array)
+        const WIN_CONDITIONS = [
+            [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+            [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
+            [0, 4, 8], [2, 4, 6]             // Diagonals
+        ];
+
+        // --- DOM ELEMENTS ---
+        const boardElement = document.getElementById('game-board');
+        const statusElement = document.getElementById('status');
+        const resetButton = document.getElementById('reset-button');
+        const settingsPanel = document.getElementById('settings-panel');
+        const settingsToggle = document.getElementById('settings-toggle');
+        const bodyContainer = document.getElementById('body-container');
+        const separatorInput = document.getElementById('separator-input');
+        const modal = document.getElementById('message-modal');
+        const modalHeader = document.getElementById('modal-header');
+        const modalText = document.getElementById('modal-text');
+
+        // --- UTILITY FUNCTIONS ---
+
+        function showMessage(header, text) {
+            modalHeader.textContent = header;
+            modalText.textContent = text;
+            modal.style.display = 'flex';
+        }
+
+        function closeModal() {
+            modal.style.display = 'none';
+        }
+
+        function updateStatus(message) {
+            statusElement.innerHTML = message;
+        }
+
+        function getMarker(player) {
+            return playerMarkers[player];
+        }
+
+        // --- THEME & CUSTOMIZATION LOGIC ---
+
+        function applyTheme(themeName) {
+            bodyContainer.className = 'min-h-screen p-4 flex flex-col items-center justify-center'; // Reset classes
+            statusElement.className = 'text-2xl text-center font-semibold p-4 rounded-lg text-white transition-all duration-300'; // Reset classes
+
+            switch (themeName) {
+                case 'NeonBlue':
+                    bodyContainer.classList.add('bg-gradient-to-br', 'from-blue-900', 'to-purple-900', 'text-white');
+                    statusElement.classList.add('bg-blue-600', 'shadow-xl');
+                    break;
+                case 'Sunset':
+                    bodyContainer.classList.add('bg-gradient-to-br', 'from-yellow-400', 'to-red-600', 'text-gray-900');
+                    statusElement.classList.add('bg-red-500', 'shadow-xl');
+                    break;
+                case 'DarkForest':
+                    bodyContainer.classList.add('bg-gray-900', 'text-gray-100');
+                    statusElement.classList.add('bg-green-700', 'shadow-xl');
+                    break;
+                default:
+                    // Default theme
+                    bodyContainer.classList.add('bg-gray-100', 'text-gray-900');
+                    statusElement.classList.add('bg-gray-700', 'shadow-xl');
+            }
+
+            // Update cell colors based on the new theme (using custom properties if necessary, but Tailwind is simpler)
+            document.querySelectorAll('.cell').forEach(cell => {
+                cell.classList.remove('bg-blue-100', 'hover:bg-blue-200', 'text-gray-800', 'bg-red-100', 'hover:bg-red-200', 'bg-green-100', 'hover:bg-green-200');
+                if (themeName === 'NeonBlue') {
+                    cell.classList.add('bg-blue-800', 'hover:bg-blue-700', 'text-white');
+                } else if (themeName === 'Sunset') {
+                    cell.classList.add('bg-red-200', 'hover:bg-red-300', 'text-red-900');
+                } else if (themeName === 'DarkForest') {
+                    cell.classList.add('bg-gray-800', 'hover:bg-gray-700', 'text-green-400');
+                } else {
+                     cell.classList.add('bg-gray-200', 'hover:bg-gray-300', 'text-gray-800');
+                }
+            });
+
+            // Re-render the status to show changes
+            renderStatus();
+        }
+
+        function setMarkerSet(setName) {
+            switch (setName) {
+                case 'Standard':
+                    playerMarkers = { X: 'X', O: 'O' };
+                    break;
+                case 'Emojis':
+                    playerMarkers = { X: '⭐', O: '❌' };
+                    break;
+                case 'TickCircle':
+                    playerMarkers = { X: '✓', O: 'O' };
+                    break;
+                default:
+                    playerMarkers = { X: 'X', O: 'O' };
+            }
+            // If the game is active, re-render the board with new icons
+            if (isGameActive || board.some(cell => cell !== null)) {
+                renderBoard();
+            }
+            renderStatus();
+        }
+
+        function updateSeparator() {
+            separatorChar = separatorInput.value.trim().substring(0, 1) || '|';
+            renderStatus();
+        }
+
+        // --- GAME LOGIC ---
+
+        function renderStatus() {
+            if (!isGameActive) return; // Status is fixed if game is over
+
+            const xMarker = getMarker('X');
+            const oMarker = getMarker('O');
+            const currentMarker = getMarker(currentPlayer);
+
+            const message = `Player ${xMarker} ${separatorChar} ${oMarker} | <span class="text-yellow-300">It's ${currentMarker}'s Turn</span>`;
+            updateStatus(message);
+        }
+
+        function renderBoard() {
+            boardElement.innerHTML = ''; // Clear board
+            board.forEach((cellValue, index) => {
+                const cell = document.createElement('div');
+                cell.classList.add('cell', 'cursor-pointer');
+                cell.setAttribute('data-index', index);
+                cell.textContent = cellValue ? getMarker(cellValue) : '';
+
+                // Apply current theme style to cells (needed for dynamic changes)
+                const currentTheme = bodyContainer.classList.contains('bg-gradient-to-br') ?
+                                     (bodyContainer.classList.contains('from-blue-900') ? 'NeonBlue' : 'Sunset') :
+                                     (bodyContainer.classList.contains('bg-gray-900') ? 'DarkForest' : 'Default');
+                applyTheme(currentTheme); // Re-apply theme to ensure cell colors are correct
+
+                if (cellValue) {
+                    cell.classList.add('filled', 'cursor-default');
+                    cell.classList.remove('hover:bg-opacity-80');
+                } else {
+                    cell.addEventListener('click', () => handleCellClick(index));
+                }
+
+                boardElement.appendChild(cell);
+            });
+        }
+
+        function checkWin() {
+            for (const condition of WIN_CONDITIONS) {
+                const [a, b, c] = condition;
+                if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+                    isGameActive = false;
+                    const winningMarker = getMarker(board[a]);
+                    updateStatus(`<span class="winner-message text-2xl font-extrabold text-yellow-300">${winningMarker} WINS!</span>`);
+
+                    // Highlight winning cells
+                    [a, b, c].forEach(index => {
+                        const cell = boardElement.querySelector(`[data-index='${index}']`);
+                        if (cell) {
+                            cell.classList.add('bg-yellow-400', 'text-gray-900', 'scale-105', 'shadow-2xl');
+                        }
+                    });
+
+                    showMessage('Game Over!', `Player ${winningMarker} has won the game!`);
+                    return true;
+                }
+            }
+
+            if (!board.includes(null)) {
+                isGameActive = false;
+                updateStatus('<span class="text-2xl font-extrabold text-white">It\'s a Draw!</span>');
+                showMessage('Game Over!', 'The game is a draw. Try again!');
+                return true;
+            }
+            return false;
+        }
+
+        function handleCellClick(index) {
+            if (!isGameActive || board[index] !== null) return;
+
+            // 1. Update Game State
+            board[index] = currentPlayer;
+
+            // 2. Render UI
+            const cell = boardElement.querySelector(`[data-index='${index}']`);
+            cell.textContent = getMarker(currentPlayer);
+            cell.classList.add('filled', 'cursor-default');
+            cell.classList.remove('hover:bg-opacity-80'); // Remove hover effect
+
+            // 3. Check for Win/Draw
+            if (checkWin()) return;
+
+            // 4. Switch Player
+            currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+            renderStatus();
+        }
+
+        function initGame() {
+            board.fill(null);
+            currentPlayer = 'X';
+            isGameActive = true;
+            renderBoard();
+            renderStatus();
+            closeModal();
+        }
+
+        // --- EVENT LISTENERS ---
+
+        resetButton.addEventListener('click', initGame);
+
+        settingsToggle.addEventListener('click', () => {
+            const isHidden = settingsPanel.classList.contains('hidden');
+            if (isHidden) {
+                settingsPanel.classList.remove('hidden');
+                settingsToggle.textContent = 'Hide Settings';
+            } else {
+                settingsPanel.classList.add('hidden');
+                settingsToggle.textContent = 'Show Settings';
+            }
+        });
+
+        // --- INITIALIZATION ---
+        window.onload = function() {
+            // Set initial default theme
+            applyTheme('NeonBlue');
+            // Set initial marker set
+            setMarkerSet('Standard');
+            // Ensure separator input reflects initial value
+            separatorInput.value = separatorChar;
+            // Start the game
+            initGame();
+        };
+
+    </script>
+
+</body>
+</html>
+
